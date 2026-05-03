@@ -53,6 +53,13 @@ import {
   Scatter,
   AreaChart,
   Area,
+  ReferenceLine,
+  Legend,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -75,21 +82,23 @@ interface ColumnInfo {
 
 interface ChartConfig {
   id: string
-  type: "bar" | "line" | "pie" | "scatter" | "area"
+  type: "bar" | "line" | "pie" | "scatter" | "area" | "radar"
   title: string
   xAxis?: string
   yAxis?: string
 }
 
 const ACCENT = "#eca8d6"
+const ACCENT_2 = "#a78bfa"
 const CHART_COLORS = ["#eca8d6", "#a78bfa", "#60a5fa", "#34d399", "#fbbf24", "#fb7185", "#22d3ee", "#f472b6"]
 
 const CHART_TYPES = [
-  { value: "bar", label: "Bar Chart", icon: BarChart3 },
-  { value: "line", label: "Line Chart", icon: LineIcon },
-  { value: "area", label: "Area Chart", icon: AreaIcon },
-  { value: "pie", label: "Pie Chart", icon: PieIcon },
-  { value: "scatter", label: "Scatter Plot", icon: ScatterIcon },
+  { value: "bar", label: "Bar", icon: BarChart3 },
+  { value: "line", label: "Line", icon: LineIcon },
+  { value: "area", label: "Area", icon: AreaIcon },
+  { value: "pie", label: "Pie", icon: PieIcon },
+  { value: "scatter", label: "Scatter", icon: ScatterIcon },
+  { value: "radar", label: "Radar", icon: TrendingUp },
 ] as const
 
 export function DataAnalystDashboard({ user }: { user: User }) {
@@ -175,8 +184,14 @@ export function DataAnalystDashboard({ user }: { user: User }) {
       dynamicTyping: true,
       complete: (results) => {
         const cleanData = results.data.filter((row) => Object.values(row).some((v) => v !== null && v !== ""))
+        const cols = analyzeColumns(cleanData)
         setData(cleanData)
-        setColumns(analyzeColumns(cleanData))
+        setColumns(cols)
+        // Auto-select sensible defaults for charts
+        const firstNumeric = cols.find((c) => c.type === "numeric")
+        const firstCategorical = cols.find((c) => c.type === "categorical" || c.type === "date")
+        if (firstCategorical) setSelectedXAxis(firstCategorical.name)
+        if (firstNumeric) setSelectedYAxis(firstNumeric.name)
         setActiveView("data")
         setIsLoading(false)
       },
@@ -214,8 +229,12 @@ export function DataAnalystDashboard({ user }: { user: User }) {
     })
 
     setFileName("demo_sales_data.csv")
+    const cols = analyzeColumns(demoData)
     setData(demoData)
-    setColumns(analyzeColumns(demoData))
+    setColumns(cols)
+    // Auto-select for instant chart visualization
+    setSelectedXAxis("region")
+    setSelectedYAxis("revenue")
     setActiveView("data")
     setIsLoading(false)
   }
@@ -320,6 +339,7 @@ export function DataAnalystDashboard({ user }: { user: User }) {
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ""
+      let accumulatedText = ""
 
       while (true) {
         const { done, value } = await reader.read()
@@ -332,21 +352,36 @@ export function DataAnalystDashboard({ user }: { user: User }) {
         for (const line of lines) {
           const trimmed = line.trim()
           if (!trimmed.startsWith("data:")) continue
-          const data = trimmed.slice(5).trim()
-          if (data === "[DONE]" || !data) continue
+          const dataStr = trimmed.slice(5).trim()
+          if (!dataStr || dataStr === "[DONE]") continue
           try {
-            const chunk = JSON.parse(data)
-            if (chunk.type === "text-delta" && chunk.delta) {
-              setReport((prev) => prev + chunk.delta)
+            const chunk = JSON.parse(dataStr)
+            // Handle different chunk types from AI SDK 6 stream
+            if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
+              accumulatedText += chunk.delta
+              setReport(accumulatedText)
+            } else if (chunk.type === "text" && typeof chunk.text === "string") {
+              accumulatedText += chunk.text
+              setReport(accumulatedText)
+            } else if (chunk.type === "error") {
+              throw new Error(chunk.errorText || "Stream error")
             }
-          } catch {
-            // Skip invalid chunks
+          } catch (err) {
+            // Skip invalid JSON chunks silently, but log unexpected errors
+            if (err instanceof Error && err.message !== "Unexpected end of JSON input") {
+              console.error("[v0] Chunk parse error:", err.message)
+            }
           }
         }
       }
+
+      if (!accumulatedText) {
+        throw new Error("No content received from AI. Please try again.")
+      }
     } catch (error) {
       console.error("[v0] Report generation error:", error)
-      setReport(`# Report Generation Failed\n\nUnable to generate report: ${error instanceof Error ? error.message : "Unknown error"}`)
+      const message = error instanceof Error ? error.message : "Unknown error"
+      setReport(`# Report Generation Failed\n\n${message}\n\nPlease try again or contact support.`)
     } finally {
       setIsGeneratingReport(false)
     }
@@ -773,6 +808,34 @@ function Stat({ label, value }: { label: string; value: string }) {
   )
 }
 
+/* Premium glass tooltip for charts */
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-lg border border-white/15 bg-black/85 backdrop-blur-xl px-3.5 py-2.5 shadow-2xl shadow-black/50">
+      {label !== undefined && (
+        <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-1.5">
+          {String(label)}
+        </div>
+      )}
+      <div className="space-y-1">
+        {payload.map((entry: any, idx: number) => (
+          <div key={idx} className="flex items-center gap-2 text-xs">
+            <span
+              className="h-2 w-2 rounded-full ring-2 ring-white/10"
+              style={{ backgroundColor: entry.color || entry.fill || ACCENT }}
+            />
+            <span className="text-white/60 font-mono">{entry.name}:</span>
+            <span className="text-white font-mono font-medium">
+              {typeof entry.value === "number" ? entry.value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function ChartView({
   columns,
   numericColumns,
@@ -797,45 +860,71 @@ function ChartView({
   setSelectedYAxis: (s: string) => void
 }) {
   const xOptions = selectedChartType === "scatter" ? numericColumns : columns
-  const tooltipStyle = {
-    backgroundColor: "rgba(0,0,0,0.9)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "8px",
-    fontFamily: "var(--font-mono)",
-    fontSize: "12px",
-  }
+
+  // Compute live insights from the chart data
+  const insights = useMemo(() => {
+    if (!chartData.length || !selectedYAxis) return null
+    const values = chartData
+      .map((d) => Number(d[selectedYAxis]))
+      .filter((n) => !isNaN(n))
+    if (!values.length) return null
+    const sum = values.reduce((a, b) => a + b, 0)
+    const avg = sum / values.length
+    const max = Math.max(...values)
+    const min = Math.min(...values)
+    const sorted = [...values].sort((a, b) => a - b)
+    const median = sorted[Math.floor(sorted.length / 2)]
+    const maxIdx = values.indexOf(max)
+    const minIdx = values.indexOf(min)
+    return {
+      sum, avg, max, min, median,
+      count: values.length,
+      maxLabel: chartData[maxIdx]?.[selectedXAxis] ?? "—",
+      minLabel: chartData[minIdx]?.[selectedXAxis] ?? "—",
+    }
+  }, [chartData, selectedXAxis, selectedYAxis])
+
+  const formatNum = (n: number) =>
+    n >= 1000 ? n.toLocaleString(undefined, { maximumFractionDigits: 1 }) : n.toFixed(2)
+
+  const axisStyle = { fontSize: 11, fontFamily: "var(--font-mono)", fill: "rgba(255,255,255,0.5)" }
 
   return (
     <div className="space-y-6">
-      {/* Chart configuration */}
-      <div className="border border-white/10 bg-white/[0.02] backdrop-blur-sm rounded-lg p-6">
-        <h3 className="text-sm font-mono uppercase tracking-wider text-white/40 mb-4">Chart Configuration</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Premium chart configuration bar */}
+      <div className="relative overflow-hidden border border-white/10 bg-gradient-to-br from-white/[0.04] to-white/[0.01] backdrop-blur-sm rounded-2xl p-6">
+        <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-[#eca8d6]/10 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-[#a78bfa]/10 blur-3xl pointer-events-none" />
+        <div className="relative grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-6 items-end">
           {/* Chart type selector */}
           <div>
-            <label className="text-xs font-mono text-white/50 mb-2 block">Type</label>
-            <div className="grid grid-cols-5 gap-1">
-              {CHART_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => setSelectedChartType(type.value as ChartConfig["type"])}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-md border transition-all ${
-                    selectedChartType === type.value
-                      ? "border-[#eca8d6] bg-[#eca8d6]/10 text-[#eca8d6]"
-                      : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
-                  }`}
-                  title={type.label}
-                >
-                  <type.icon className="h-4 w-4" />
-                </button>
-              ))}
+            <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-2 block">Visualization Type</label>
+            <div className="flex flex-wrap gap-1.5">
+              {CHART_TYPES.map((type) => {
+                const isActive = selectedChartType === type.value
+                return (
+                  <button
+                    key={type.value}
+                    onClick={() => setSelectedChartType(type.value as ChartConfig["type"])}
+                    className={`group flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                      isActive
+                        ? "border-[#eca8d6]/40 bg-gradient-to-br from-[#eca8d6]/15 to-[#a78bfa]/10 text-[#eca8d6] shadow-lg shadow-[#eca8d6]/10"
+                        : "border-white/10 bg-white/[0.02] text-white/60 hover:text-white hover:border-white/25 hover:bg-white/5"
+                    }`}
+                    title={type.label}
+                  >
+                    <type.icon className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">{type.label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-mono text-white/50 mb-2 block">X-Axis</label>
+            <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-2 block">X-Axis (categories)</label>
             <Select value={selectedXAxis} onValueChange={setSelectedXAxis}>
-              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 rounded-lg">
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-950 border-white/10">
@@ -849,9 +938,9 @@ function ChartView({
           </div>
 
           <div>
-            <label className="text-xs font-mono text-white/50 mb-2 block">Y-Axis</label>
+            <label className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-2 block">Y-Axis (values)</label>
             <Select value={selectedYAxis} onValueChange={setSelectedYAxis}>
-              <SelectTrigger className="bg-white/5 border-white/10 text-white">
+              <SelectTrigger className="bg-white/5 border-white/10 text-white h-10 rounded-lg">
                 <SelectValue placeholder="Select column" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-950 border-white/10">
@@ -866,98 +955,295 @@ function ChartView({
         </div>
       </div>
 
-      {/* Chart display */}
-      <div className="border border-white/10 bg-white/[0.02] backdrop-blur-sm rounded-lg p-6">
-        {selectedXAxis && selectedYAxis ? (
-          <div className="h-[500px]">
-            <ResponsiveContainer width="100%" height="100%">
-              {selectedChartType === "bar" ? (
-                <BarChart data={chartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
-                  <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey={selectedYAxis} fill={ACCENT} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              ) : selectedChartType === "line" ? (
-                <RechartsLineChart data={chartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
-                  <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line
-                    type="monotone"
-                    dataKey={selectedYAxis}
-                    stroke={ACCENT}
-                    strokeWidth={2}
-                    dot={{ fill: ACCENT, r: 3 }}
-                  />
-                </RechartsLineChart>
-              ) : selectedChartType === "area" ? (
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={ACCENT} stopOpacity={0.6} />
-                      <stop offset="100%" stopColor={ACCENT} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
-                  <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Area
-                    type="monotone"
-                    dataKey={selectedYAxis}
-                    stroke={ACCENT}
-                    strokeWidth={2}
-                    fill="url(#areaGradient)"
-                  />
-                </AreaChart>
-              ) : selectedChartType === "pie" ? (
-                <RechartsPieChart>
-                  <Pie
-                    data={chartData}
-                    dataKey={selectedYAxis}
-                    nameKey={selectedXAxis}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={150}
-                    label={(entry: any) => `${entry[selectedXAxis]}`}
-                  >
-                    {chartData.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </RechartsPieChart>
-              ) : (
-                <ScatterChart>
-                  <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
-                  <XAxis
-                    type="number"
-                    dataKey={selectedXAxis}
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey={selectedYAxis}
-                    stroke="rgba(255,255,255,0.3)"
-                    tick={{ fontSize: 11 }}
-                  />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ strokeDasharray: "3 3" }} />
-                  <Scatter data={chartData} fill={ACCENT} />
-                </ScatterChart>
-              )}
-            </ResponsiveContainer>
+      {/* Chart + Insights grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-6">
+        {/* Chart canvas */}
+        <div className="relative border border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent backdrop-blur-sm rounded-2xl p-6 overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          {selectedXAxis && selectedYAxis ? (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-display tracking-tight">
+                    {selectedYAxis} <span className="text-white/40 text-sm">by</span> {selectedXAxis}
+                  </h3>
+                  <p className="text-xs font-mono text-white/40 mt-0.5">
+                    {chartData.length} {chartData.length === 1 ? "data point" : "data points"}
+                    {selectedChartType !== "scatter" && " · aggregated by mean"}
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-[#eca8d6] bg-[#eca8d6]/10 px-2 py-1 rounded-full border border-[#eca8d6]/20">
+                  Live
+                </span>
+              </div>
+              <div className="h-[480px] -mx-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  {selectedChartType === "bar" ? (
+                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                      <defs>
+                        {chartData.map((_, idx) => (
+                          <linearGradient key={idx} id={`barGrad${idx}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={CHART_COLORS[idx % CHART_COLORS.length]} stopOpacity={0.95} />
+                            <stop offset="100%" stopColor={CHART_COLORS[idx % CHART_COLORS.length]} stopOpacity={0.4} />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <YAxis stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+                      {insights && (
+                        <ReferenceLine
+                          y={insights.avg}
+                          stroke="rgba(236,168,214,0.5)"
+                          strokeDasharray="4 4"
+                          label={{ value: "avg", fill: "#eca8d6", fontSize: 10, position: "right" }}
+                        />
+                      )}
+                      <Bar dataKey={selectedYAxis} radius={[6, 6, 0, 0]} animationDuration={800}>
+                        {chartData.map((_, idx) => (
+                          <Cell key={idx} fill={`url(#barGrad${idx})`} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  ) : selectedChartType === "line" ? (
+                    <RechartsLineChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                      <defs>
+                        <linearGradient id="lineStroke" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor={ACCENT} />
+                          <stop offset="100%" stopColor={ACCENT_2} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <YAxis stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(236,168,214,0.3)", strokeWidth: 1 }} />
+                      {insights && (
+                        <ReferenceLine y={insights.avg} stroke="rgba(236,168,214,0.4)" strokeDasharray="4 4" />
+                      )}
+                      <Line
+                        type="monotone"
+                        dataKey={selectedYAxis}
+                        stroke="url(#lineStroke)"
+                        strokeWidth={2.5}
+                        dot={{ fill: ACCENT, r: 4, strokeWidth: 2, stroke: "rgba(0,0,0,0.5)" }}
+                        activeDot={{ r: 6, fill: ACCENT, stroke: "white", strokeWidth: 2 }}
+                        animationDuration={1000}
+                      />
+                    </RechartsLineChart>
+                  ) : selectedChartType === "area" ? (
+                    <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={ACCENT} stopOpacity={0.5} />
+                          <stop offset="50%" stopColor={ACCENT_2} stopOpacity={0.25} />
+                          <stop offset="100%" stopColor={ACCENT_2} stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="areaStroke" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor={ACCENT} />
+                          <stop offset="100%" stopColor={ACCENT_2} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey={selectedXAxis} stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <YAxis stroke="rgba(255,255,255,0.2)" tick={axisStyle} tickLine={false} axisLine={false} />
+                      <Tooltip content={<ChartTooltip />} cursor={{ stroke: "rgba(236,168,214,0.3)", strokeWidth: 1 }} />
+                      <Area
+                        type="monotone"
+                        dataKey={selectedYAxis}
+                        stroke="url(#areaStroke)"
+                        strokeWidth={2.5}
+                        fill="url(#areaGradient)"
+                        animationDuration={1000}
+                      />
+                    </AreaChart>
+                  ) : selectedChartType === "pie" ? (
+                    <RechartsPieChart>
+                      <defs>
+                        {CHART_COLORS.map((color, idx) => (
+                          <radialGradient key={idx} id={`pieGrad${idx}`}>
+                            <stop offset="0%" stopColor={color} stopOpacity={1} />
+                            <stop offset="100%" stopColor={color} stopOpacity={0.7} />
+                          </radialGradient>
+                        ))}
+                      </defs>
+                      <Pie
+                        data={chartData}
+                        dataKey={selectedYAxis}
+                        nameKey={selectedXAxis}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={70}
+                        outerRadius={160}
+                        paddingAngle={2}
+                        animationDuration={800}
+                        label={(entry: any) => `${entry[selectedXAxis]}`}
+                        labelLine={{ stroke: "rgba(255,255,255,0.2)" }}
+                      >
+                        {chartData.map((_, idx) => (
+                          <Cell
+                            key={idx}
+                            fill={`url(#pieGrad${idx % CHART_COLORS.length})`}
+                            stroke="rgba(0,0,0,0.4)"
+                            strokeWidth={2}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </RechartsPieChart>
+                  ) : selectedChartType === "scatter" ? (
+                    <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                      <defs>
+                        <radialGradient id="scatterGrad">
+                          <stop offset="0%" stopColor={ACCENT} stopOpacity={1} />
+                          <stop offset="100%" stopColor={ACCENT_2} stopOpacity={0.6} />
+                        </radialGradient>
+                      </defs>
+                      <CartesianGrid stroke="rgba(255,255,255,0.05)" strokeDasharray="3 3" />
+                      <XAxis
+                        type="number"
+                        dataKey={selectedXAxis}
+                        stroke="rgba(255,255,255,0.2)"
+                        tick={axisStyle}
+                        tickLine={false}
+                        axisLine={false}
+                        name={selectedXAxis}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey={selectedYAxis}
+                        stroke="rgba(255,255,255,0.2)"
+                        tick={axisStyle}
+                        tickLine={false}
+                        axisLine={false}
+                        name={selectedYAxis}
+                      />
+                      <Tooltip content={<ChartTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "rgba(236,168,214,0.3)" }} />
+                      <Scatter
+                        data={chartData}
+                        fill="url(#scatterGrad)"
+                        animationDuration={800}
+                        shape={(props: any) => (
+                          <circle
+                            cx={props.cx}
+                            cy={props.cy}
+                            r={5}
+                            fill="url(#scatterGrad)"
+                            stroke="rgba(255,255,255,0.3)"
+                            strokeWidth={1}
+                          />
+                        )}
+                      />
+                    </ScatterChart>
+                  ) : (
+                    <RadarChart data={chartData} margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                      <defs>
+                        <linearGradient id="radarFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={ACCENT} stopOpacity={0.5} />
+                          <stop offset="100%" stopColor={ACCENT_2} stopOpacity={0.15} />
+                        </linearGradient>
+                      </defs>
+                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarAngleAxis dataKey={selectedXAxis} tick={{ ...axisStyle, fill: "rgba(255,255,255,0.6)" }} />
+                      <PolarRadiusAxis stroke="rgba(255,255,255,0.15)" tick={{ ...axisStyle, fill: "rgba(255,255,255,0.4)" }} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Radar
+                        dataKey={selectedYAxis}
+                        stroke={ACCENT}
+                        strokeWidth={2}
+                        fill="url(#radarFill)"
+                        animationDuration={1000}
+                      />
+                    </RadarChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+            </>
+          ) : (
+            <div className="h-[400px] flex flex-col items-center justify-center text-white/40">
+              <BarChart3 className="h-12 w-12 mb-4" />
+              <p className="text-sm">Select X and Y axes to render the chart</p>
+            </div>
+          )}
+        </div>
+
+        {/* Insights sidebar */}
+        <div className="space-y-3">
+          <div className="border border-white/10 bg-gradient-to-br from-[#eca8d6]/10 to-transparent backdrop-blur-sm rounded-2xl p-5">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="h-3.5 w-3.5 text-[#eca8d6]" />
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#eca8d6]">Live Insights</span>
+            </div>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Statistical breakdown of the visualized data.
+            </p>
           </div>
-        ) : (
-          <div className="h-[400px] flex flex-col items-center justify-center text-white/40">
-            <BarChart3 className="h-12 w-12 mb-4" />
-            <p className="text-sm">Select X and Y axes to render the chart</p>
-          </div>
-        )}
+
+          {insights ? (
+            <>
+              <InsightCard label="Total" value={formatNum(insights.sum)} accent />
+              <InsightCard label="Average" value={formatNum(insights.avg)} />
+              <InsightCard label="Median" value={formatNum(insights.median)} />
+              <InsightCard
+                label="Maximum"
+                value={formatNum(insights.max)}
+                sublabel={`from ${insights.maxLabel}`}
+                trend="up"
+              />
+              <InsightCard
+                label="Minimum"
+                value={formatNum(insights.min)}
+                sublabel={`from ${insights.minLabel}`}
+                trend="down"
+              />
+              <InsightCard label="Data Points" value={insights.count.toLocaleString()} />
+            </>
+          ) : (
+            <div className="border border-white/10 bg-white/[0.02] backdrop-blur-sm rounded-xl p-5 text-xs text-white/40">
+              Configure axes to see live insights.
+            </div>
+          )}
+        </div>
       </div>
+    </div>
+  )
+}
+
+function InsightCard({
+  label,
+  value,
+  sublabel,
+  accent,
+  trend,
+}: {
+  label: string
+  value: string
+  sublabel?: string
+  accent?: boolean
+  trend?: "up" | "down"
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden border rounded-xl p-4 backdrop-blur-sm transition-all hover:border-white/20 ${
+        accent
+          ? "border-[#eca8d6]/30 bg-gradient-to-br from-[#eca8d6]/10 to-[#a78bfa]/5"
+          : "border-white/10 bg-white/[0.02]"
+      }`}
+    >
+      {trend && (
+        <div
+          className={`absolute top-3 right-3 h-6 w-6 rounded-full flex items-center justify-center ${
+            trend === "up" ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"
+          }`}
+        >
+          <span className="text-[10px] font-bold">{trend === "up" ? "↑" : "↓"}</span>
+        </div>
+      )}
+      <div className="text-[10px] font-mono uppercase tracking-wider text-white/40 mb-1.5">{label}</div>
+      <div className={`text-2xl font-display tracking-tight ${accent ? "text-[#eca8d6]" : "text-white"}`}>
+        {value}
+      </div>
+      {sublabel && <div className="text-[10px] font-mono text-white/40 mt-1 truncate">{sublabel}</div>}
     </div>
   )
 }

@@ -6,12 +6,12 @@ export async function POST(req: Request) {
   try {
     const { dataSummary, columns, rowCount, sampleData, fileName } = await req.json()
 
-    const systemPrompt = `You are an elite data scientist and business analyst writing for a Fortune 500 executive audience.
-Your reports are published in publications like Harvard Business Review and McKinsey Quarterly.
+    const systemPrompt = `You are an elite data scientist and business analyst writing for Fortune 500 executives.
+Your reports are published in Harvard Business Review and McKinsey Quarterly.
 You write with the precision of a statistician, the clarity of a journalist, and the strategic insight of a McKinsey partner.
 
 Your reports must:
-- Use rich Markdown formatting with proper hierarchy (# ## ###)
+- Use rich Markdown with proper hierarchy (# ## ###)
 - Include specific numbers, percentages, and statistical insights
 - Make bold, evidence-based claims (not vague observations)
 - Use bullet points, tables, and blockquotes for visual interest
@@ -48,12 +48,12 @@ A 2-3 paragraph powerful opening that captures the most striking findings. Lead 
 Brief technical description with quality assessment.
 
 ## Key Findings
-5-7 numbered findings with specific statistics, formatted as:
+5-7 numbered findings with specific statistics. Format each as:
 **Finding N: [Bold headline claim]**
 [Detailed explanation with numbers, percentages, and implications]
 
 ## Statistical Deep Dive
-Analysis of distributions, correlations, outliers, and anomalies. Use a table to compare key metrics.
+Analysis of distributions, correlations, outliers, and anomalies. Include a markdown table comparing key metrics.
 
 ## Patterns & Trends
 Non-obvious patterns discovered in the data. What story does the data tell?
@@ -70,9 +70,11 @@ Compelling close that ties findings to business value.
 Write with confidence, specificity, and analytical rigor. No filler, no generic statements.`
 
     const result = streamText({
-      model: "openai/gpt-5-mini",
+      model: "openai/gpt-4o-mini",
       system: systemPrompt,
       prompt: userPrompt,
+      maxOutputTokens: 4000,
+      temperature: 0.7,
     })
 
     return result.toUIMessageStreamResponse()
