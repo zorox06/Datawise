@@ -66,18 +66,18 @@ const logos: Record<string, React.ReactNode> = {
 };
 
 const integrations = [
-  { name: "OpenAI", category: "LLM" },
-  { name: "Anthropic", category: "LLM" },
-  { name: "Slack", category: "Comms" },
-  { name: "GitHub", category: "Code" },
-  { name: "Jira", category: "PM" },
-  { name: "AWS S3", category: "Storage" },
-  { name: "Google Drive", category: "Docs" },
-  { name: "Salesforce", category: "CRM" },
-  { name: "HubSpot", category: "Marketing" },
-  { name: "Zapier", category: "Auto" },
-  { name: "Snowflake", category: "Data" },
-  { name: "Stripe", category: "Payments" },
+  { name: "CSV/TSV", category: "Data" },
+  { name: "JSON", category: "Data" },
+  { name: "SQLite", category: "Database" },
+  { name: "Plotly.js", category: "Charts" },
+  { name: "Gemini AI", category: "AI" },
+  { name: "sql.js", category: "Query" },
+  { name: "Papa Parse", category: "Parser" },
+  { name: "marked.js", category: "Markdown" },
+  { name: "PNG Export", category: "Export" },
+  { name: "SVG Export", category: "Export" },
+  { name: "PDF Report", category: "Export" },
+  { name: "Dashboard", category: "Save" },
 ];
 
 export function IntegrationsSection() {
@@ -114,15 +114,15 @@ export function IntegrationsSection() {
         <h2 className={`text-6xl md:text-7xl lg:text-[128px] font-display tracking-tight leading-[0.9] transition-all duration-1000 ${
           isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
         }`}>
-          Connect
+          Import
           <br />
-          <span className="text-muted-foreground">everything.</span>
+          <span className="text-muted-foreground">anything.</span>
         </h2>
 
         <p className={`mt-8 text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto transition-all duration-1000 delay-100 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}>
-          Your agents connect to 100+ tools and services. They read, write, and act autonomously across your entire stack.
+          Drag and drop your data files. CSV, TSV, JSON, SQLite. Auto-detect column types. Start analyzing in seconds.
         </p>
       </div>
 
@@ -210,9 +210,9 @@ export function IntegrationsSection() {
         }`}>
           <div className="flex flex-wrap gap-12">
             {[
-              { value: "100+", label: "Integrations" },
-              { value: "OAuth", label: "Auth built-in" },
-              { value: "Webhooks", label: "Real-time sync" },
+              { value: "4+", label: "File formats" },
+              { value: "Zero", label: "Backend needed" },
+              { value: "Instant", label: "Processing" },
             ].map((stat) => (
               <div key={stat.label} className="flex items-baseline gap-3">
                 <span className="text-3xl font-display">{stat.value}</span>
@@ -222,7 +222,7 @@ export function IntegrationsSection() {
           </div>
 
           <a href="#" className="group inline-flex items-center gap-2 text-sm font-mono text-muted-foreground hover:text-foreground transition-colors">
-            View all integrations
+            View documentation
             <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
           </a>
         </div>

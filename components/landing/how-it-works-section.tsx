@@ -5,39 +5,38 @@ import { useEffect, useRef, useState } from "react";
 const steps = [
   {
     number: "01",
-    title: "Define",
-    subtitle: "your agent",
-    description: "Describe what your agent should do. Set its capabilities, constraints, and goals in natural language or code.",
-    code: `const researcher = new Agent({
-  role: 'Research Analyst',
-  capabilities: ['web', 'docs', 'api'],
-  memory: true,
-  autonomy: 'full'
-})`,
+    title: "Upload",
+    subtitle: "your data",
+    description: "Drag and drop CSV, TSV, JSON, or SQLite files. We auto-detect column types and show you a paginated preview instantly.",
+    code: `// Supported formats
+CSV, TSV, JSON, SQLite (.db)
+
+// Auto-detection
+- Numeric columns
+- Categorical columns  
+- Date/time columns`,
   },
   {
     number: "02",
-    title: "Assign",
-    subtitle: "the task",
-    description: "Give your agent a mission. It breaks down complex tasks into steps and executes them autonomously.",
-    code: `await researcher.execute({
-  task: 'Analyze competitor pricing',
-  sources: ['public-data', 'news'],
-  output: 'structured-report',
-  deadline: '2h'
-})`,
+    title: "Analyze",
+    subtitle: "& visualize",
+    description: "Get instant statistics, AI-recommended charts, and build custom visualizations with 19+ chart types in our Chart Studio.",
+    code: `// AI Recommendations
+- Time series → Line Chart
+- 2+ numeric → Scatter Plot
+- Categorical → Bar Chart
+- Distribution → Histogram`,
   },
   {
     number: "03",
-    title: "Monitor",
-    subtitle: "& scale",
-    description: "Track progress in real-time. Spin up more agents as needed. Pay only for compute used.",
-    code: `optimus.dashboard({
-  agents: [researcher],
-  metrics: ['tasks', 'latency', 'cost'],
-  alerts: true
-})
-// 847 tasks completed today`,
+    title: "Report",
+    subtitle: "& export",
+    description: "Generate AI-powered analytical reports with Gemini. Export charts as PNG/SVG, save dashboards, download reports.",
+    code: `// AI Report Sections
+1. Executive Summary
+2. Key Findings (5+ insights)
+3. Recommendations
+4. Data Quality Analysis`,
   },
 ];
 
@@ -88,9 +87,9 @@ export function HowItWorksSection() {
             <h2 className={`text-6xl md:text-7xl lg:text-[128px] font-display tracking-tight leading-[0.85] transition-all duration-1000 delay-100 ${
               isVisible ? "translate-y-0 opacity-100" : "translate-y-16 opacity-0"
             }`}>
-              <span className="block">Define.</span>
-              <span className="block text-white/30">Deploy.</span>
-              <span className="block text-white/10">Scale.</span>
+              <span className="block">Upload.</span>
+              <span className="block text-white/30">Analyze.</span>
+              <span className="block text-white/10">Report.</span>
             </h2>
           </div>
 

@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useRef } from "react";
 
-const regions = [
-  { name: "North America", nodes: 12, status: "operational" },
-  { name: "Europe", nodes: 8, status: "operational" },
-  { name: "Asia Pacific", nodes: 6, status: "operational" },
-  { name: "South America", nodes: 3, status: "operational" },
+const chartTypes = [
+  { name: "Basic Charts", nodes: 5, status: "bar, line, area, pie, donut" },
+  { name: "Statistical", nodes: 4, status: "histogram, box, violin, scatter" },
+  { name: "Advanced", nodes: 6, status: "heatmap, treemap, sunburst, funnel" },
+  { name: "Specialized", nodes: 4, status: "bubble, gauge, waterfall, multi" },
 ];
 
 export function InfrastructureSection() {
@@ -44,7 +44,7 @@ export function InfrastructureSection() {
             isVisible ? "opacity-100" : "opacity-0"
           }`}>
             <span className="w-12 h-px bg-foreground/20" />
-            Global infrastructure
+            Chart Studio
           </span>
           
           <div className="grid lg:grid-cols-[auto_1fr] gap-8 lg:gap-16 items-stretch">
@@ -64,16 +64,16 @@ export function InfrastructureSection() {
               <h2 className={`text-6xl md:text-7xl lg:text-[128px] font-display tracking-tight leading-[0.9] transition-all duration-1000 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
               }`}>
-                Global by
+                Visualize
                 <br />
-                <span className="text-muted-foreground">default.</span>
+                <span className="text-muted-foreground">anything.</span>
               </h2>
 
               <p className={`mt-8 text-xl text-muted-foreground leading-relaxed max-w-lg transition-all duration-1000 delay-100 ${
                 isVisible ? "opacity-100" : "opacity-0"
               }`}>
-                Your agents run on distributed infrastructure across 29 regions.
-                Sub-50ms latency to 99% of the world.
+                19+ chart types with full customization. Color themes, aggregations,
+                trend lines, and instant live preview.
               </p>
             </div>
           </div>
@@ -144,11 +144,11 @@ export function InfrastructureSection() {
             
             <div className="relative z-10">
               <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-8xl lg:text-[10rem] font-display leading-none">29</span>
-                <span className="text-2xl text-muted-foreground">regions</span>
+                <span className="text-8xl lg:text-[10rem] font-display leading-none">19</span>
+                <span className="text-2xl text-muted-foreground">chart types</span>
               </div>
               <p className="text-muted-foreground max-w-md">
-                Compute nodes distributed globally for maximum redundancy and minimum latency.
+                From simple bar charts to complex heatmaps. Every visualization you need in one tool.
               </p>
             </div>
           </div>
@@ -158,26 +158,26 @@ export function InfrastructureSection() {
             <div className={`p-8 border border-foreground/10 bg-foreground/[0.02] transition-all duration-700 delay-100 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}>
-              <span className="text-5xl lg:text-6xl font-display">99.99%</span>
-              <span className="block text-sm text-muted-foreground mt-2">Uptime SLA</span>
+              <span className="text-5xl lg:text-6xl font-display">6</span>
+              <span className="block text-sm text-muted-foreground mt-2">Color themes</span>
             </div>
             
             <div className={`p-8 border border-foreground/10 bg-foreground/[0.02] transition-all duration-700 delay-200 ${
               isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
             }`}>
-              <span className="text-5xl lg:text-6xl font-display">&lt;50ms</span>
-              <span className="block text-sm text-muted-foreground mt-2">Global latency</span>
+              <span className="text-5xl lg:text-6xl font-display">Live</span>
+              <span className="block text-sm text-muted-foreground mt-2">Instant preview</span>
             </div>
           </div>
         </div>
 
-        {/* Region list */}
+        {/* Chart types list */}
         <div className={`mt-12 grid grid-cols-2 lg:grid-cols-4 gap-4 transition-all duration-1000 delay-300 ${
           isVisible ? "opacity-100" : "opacity-0"
         }`}>
-          {regions.map((region, index) => (
+          {chartTypes.map((category, index) => (
             <div
-              key={region.name}
+              key={category.name}
               className={`p-6 border transition-all duration-300 cursor-default ${
                 activeRegion === index 
                   ? "border-foreground/30 bg-foreground/[0.04]" 
@@ -189,11 +189,11 @@ export function InfrastructureSection() {
                   activeRegion === index ? "bg-[#eca8d6]" : "bg-foreground/20"
                 }`} />
                 <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
-                  {region.status}
+                  {category.nodes} types
                 </span>
               </div>
-              <span className="font-medium block mb-1">{region.name}</span>
-              <span className="text-sm text-muted-foreground">{region.nodes} nodes</span>
+              <span className="font-medium block mb-1">{category.name}</span>
+              <span className="text-sm text-muted-foreground">{category.status}</span>
             </div>
           ))}
         </div>

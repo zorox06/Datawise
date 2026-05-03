@@ -5,32 +5,32 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const testimonials = [
   {
-    quote: "Our agents handle 80% of our customer support tickets autonomously. The ROI was immediate.",
+    quote: "Replaced our entire data analysis workflow. What took hours in Excel now takes minutes with beautiful charts.",
     author: "Sarah Chen",
-    role: "CTO",
+    role: "Data Analyst",
     company: "Meridian Labs",
-    metric: { value: "80%", label: "Ticket resolution" },
+    metric: { value: "10x", label: "Faster analysis" },
   },
   {
-    quote: "We deployed research agents that work 24/7. They surface insights we'd never find manually.",
+    quote: "The AI-generated reports are incredible. Our clients love the professional executive summaries and insights.",
     author: "Marcus Webb",
     role: "Head of Research",
     company: "Flux Systems",
-    metric: { value: "10x", label: "Research output" },
+    metric: { value: "9", label: "Report sections" },
   },
   {
-    quote: "The multi-agent orchestration is incredible. Complex workflows that took weeks now run in hours.",
+    quote: "No more switching between tools. Upload, clean, visualize, and report all in one place. Game changer.",
     author: "Elena Rodriguez",
-    role: "VP Engineering",
+    role: "VP Analytics",
     company: "Beacon AI",
-    metric: { value: "40x", label: "Faster workflows" },
+    metric: { value: "19+", label: "Chart types" },
   },
   {
-    quote: "Security was our biggest concern. The sandboxing and audit trails gave us full confidence.",
+    quote: "Privacy-first approach was key for us. All processing in browser means our sensitive data stays secure.",
     author: "James Liu",
     role: "CISO",
     company: "Prism Analytics",
-    metric: { value: "0", label: "Security incidents" },
+    metric: { value: "100%", label: "Browser-based" },
   },
 ];
 

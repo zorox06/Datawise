@@ -21,8 +21,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'COMPUTE - AI Agents for Distributed Computing',
-  description: 'Deploy autonomous AI agents on distributed infrastructure. Offload complex tasks to intelligent workers that run 24/7.',
+  title: 'DATAWISE - AI-Powered Data Science Analyst',
+  description: 'Upload CSV, JSON, or SQLite files. Get instant statistics, AI-recommended charts, and professional reports. All in your browser.',
   generator: 'v0.app',
 }
 

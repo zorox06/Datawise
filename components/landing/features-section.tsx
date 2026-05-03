@@ -5,27 +5,27 @@ import { useEffect, useRef, useState } from "react";
 const features = [
   {
     number: "01",
-    title: "Autonomous Execution",
-    description: "Deploy AI agents that work independently. They analyze, decide, and execute complex multi-step tasks without human intervention.",
-    stats: { value: "99.7%", label: "task completion" },
+    title: "Smart Visualizations",
+    description: "19+ chart types from bar charts to heatmaps. AI recommends the best visualization for your data automatically.",
+    stats: { value: "19+", label: "chart types" },
   },
   {
     number: "02",
-    title: "Distributed Computing",
-    description: "Offload compute-heavy tasks to our global network. Your agents run on optimized infrastructure across 50+ regions worldwide.",
-    stats: { value: "50+", label: "global regions" },
+    title: "AI-Powered Analysis",
+    description: "Gemini AI generates detailed analytical reports with executive summaries, key findings, and actionable recommendations.",
+    stats: { value: "AI", label: "powered insights" },
   },
   {
     number: "03",
-    title: "Multi-Agent Orchestration",
-    description: "Coordinate teams of specialized agents. They communicate, delegate, and collaborate to solve complex problems together.",
-    stats: { value: "1000x", label: "parallel execution" },
+    title: "Data Cleaning Suite",
+    description: "Drop nulls, remove duplicates, fill missing values, and transform columns. Live data health score tracks quality.",
+    stats: { value: "100%", label: "data quality" },
   },
   {
     number: "04",
-    title: "Secure Sandboxing",
-    description: "Each agent runs in isolated environments. Full audit trails, encrypted execution, and zero data leakage between tasks.",
-    stats: { value: "0", label: "data breaches" },
+    title: "SQL Query Engine",
+    description: "Query your data with SQL using our built-in sql.js engine. Works entirely in your browser with zero backend.",
+    stats: { value: "0", label: "data sent to servers" },
   },
 ];
 
@@ -165,16 +165,16 @@ export function FeaturesSection() {
                   isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
                 }`}
               >
-                Intelligent
+                Powerful
                 <br />
-                <span className="text-muted-foreground">workers.</span>
+                <span className="text-muted-foreground">analytics.</span>
               </h2>
             </div>
             <div className="lg:col-span-5 lg:pb-4">
               <p className={`text-xl text-muted-foreground leading-relaxed transition-all duration-1000 delay-200 ${
                 isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
               }`}>
-                Deploy autonomous AI agents that execute complex tasks across distributed infrastructure. No supervision required.
+                Upload CSV, JSON, or SQLite files. Get instant statistics, AI-recommended charts, and professional reports. All in your browser.
               </p>
             </div>
           </div>
