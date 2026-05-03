@@ -79,12 +79,14 @@ export function TestimonialsSection() {
 
   return (
     <section ref={sectionRef} className="relative py-32 lg:py-40 bg-foreground text-background overflow-hidden">
-      {/* ASCII background pattern */}
+      {/* ASCII background pattern - using deterministic seeded pattern */}
       <div className="absolute inset-0 font-mono text-[10px] text-background/[0.02] leading-tight overflow-hidden whitespace-pre select-none">
-        {Array.from({ length: 60 }, (_, i) => 
-          Array.from({ length: 100 }, () => 
-            Math.random() > 0.7 ? '"' : ' '
-          ).join("")
+        {Array.from({ length: 60 }, (_, row) => 
+          Array.from({ length: 100 }, (_, col) => {
+            // Deterministic pseudo-random based on position
+            const seed = (row * 100 + col) * 9301 + 49297;
+            return (seed % 233280) / 233280 > 0.7 ? '"' : ' ';
+          }).join("")
         ).join("\n")}
       </div>
 
