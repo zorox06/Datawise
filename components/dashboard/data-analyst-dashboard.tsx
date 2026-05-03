@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { deepAnalyze, generateReport as generateLocalReport } from "@/lib/data-analyzer"
 import { useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 import Papa from "papaparse"
@@ -286,7 +287,8 @@ export function DataAnalystDashboard({ user }: { user: User }) {
     URL.revokeObjectURL(url)
   }
 
-  // AI Report Generation via streaming
+  // Local statistical report generation — runs entirely in the browser.
+  // Streams the markdown for a smooth, "AI-style" reveal effect.
   const generateReport = async () => {
     if (data.length === 0) return
     setIsGeneratingReport(true)
@@ -294,95 +296,30 @@ export function DataAnalystDashboard({ user }: { user: User }) {
     setActiveView("report")
 
     try {
-      const dataSummary = {
-        rowCount: data.length,
-        columnCount: columns.length,
-        healthScore,
-        numericStats: numericColumns.map((c) => ({
-          column: c.name,
-          min: c.min,
-          max: c.max,
-          mean: c.mean ? Number(c.mean.toFixed(2)) : null,
-          median: c.median,
-          std: c.std ? Number(c.std.toFixed(2)) : null,
-        })),
-        categoricalSummary: categoricalColumns.map((c) => ({
-          column: c.name,
-          uniqueValues: c.uniqueValues,
-          nullCount: c.nullCount,
-        })),
-      }
+      // Run a deep statistical analysis on the full dataset
+      const analysis = deepAnalyze(data)
+      const fullReport = generateLocalReport(data, analysis, fileName || "dataset.csv")
 
-      const response = await fetch("/api/generate-report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dataSummary,
-          columns: columns.map((c) => ({
-            name: c.name,
-            type: c.type,
-            stats:
-              c.type === "numeric" && c.mean !== undefined
-                ? `mean=${c.mean.toFixed(2)}, std=${c.std?.toFixed(2)}`
-                : `unique=${c.uniqueValues}`,
-          })),
-          rowCount: data.length,
-          sampleData: data.slice(0, 5),
-          fileName,
-        }),
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error("Failed to generate report")
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-      let accumulatedText = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() || ""
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith("data:")) continue
-          const dataStr = trimmed.slice(5).trim()
-          if (!dataStr || dataStr === "[DONE]") continue
-          try {
-            const chunk = JSON.parse(dataStr)
-            // Handle different chunk types from AI SDK 6 stream
-            if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
-              accumulatedText += chunk.delta
-              setReport(accumulatedText)
-            } else if (chunk.type === "text" && typeof chunk.text === "string") {
-              accumulatedText += chunk.text
-              setReport(accumulatedText)
-            } else if (chunk.type === "error") {
-              throw new Error(chunk.errorText || "Stream error")
-            }
-          } catch (err) {
-            // Skip invalid JSON chunks silently, but log unexpected errors
-            if (err instanceof Error && err.message !== "Unexpected end of JSON input") {
-              console.error("[v0] Chunk parse error:", err.message)
-            }
-          }
+      // Stream the markdown character-by-character for a premium feel.
+      // Chunks of ~25 chars per frame -> ~5-8s for a typical report.
+      const chunkSize = 24
+      let i = 0
+      const tick = () => {
+        if (i >= fullReport.length) {
+          setIsGeneratingReport(false)
+          return
         }
+        i = Math.min(i + chunkSize, fullReport.length)
+        setReport(fullReport.slice(0, i))
+        // Use rAF for smooth incremental rendering
+        requestAnimationFrame(tick)
       }
-
-      if (!accumulatedText) {
-        throw new Error("No content received from AI. Please try again.")
-      }
+      // Slight initial delay so the loading state is visible
+      setTimeout(() => requestAnimationFrame(tick), 250)
     } catch (error) {
       console.error("[v0] Report generation error:", error)
       const message = error instanceof Error ? error.message : "Unknown error"
-      setReport(`# Report Generation Failed\n\n${message}\n\nPlease try again or contact support.`)
-    } finally {
+      setReport(`# Report Generation Failed\n\n${message}\n\nPlease try again.`)
       setIsGeneratingReport(false)
     }
   }
