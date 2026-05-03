@@ -28,7 +28,7 @@ export function InfrastructureSection() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveRegion((prev) => (prev + 1) % regions.length);
+      setActiveRegion((prev) => (prev + 1) % chartTypes.length);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
